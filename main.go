@@ -1,10 +1,12 @@
 package main
 
 import (
+	"encoding/json"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/xid"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -32,14 +34,21 @@ func NewRecipeHandler(c *gin.Context) {
 
 }
 
+func ListRecipesHandler(c *gin.Context) {
+	c.JSON(http.StatusOK, recipes)
+}
+
 var recipes []Recipe
 
 func init() {
 	recipes = make([]Recipe, 0)
+	file, _ := os.ReadFile("recipes.json")
+	_ = json.Unmarshal(file, &recipes)
 }
 
 func main() {
 	router := gin.Default()
 	router.POST("/recipes", NewRecipeHandler)
+	router.GET("/recipes", ListRecipesHandler)
 	log.Fatal(router.Run())
 }
