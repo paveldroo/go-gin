@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -94,6 +95,29 @@ func DeleteRecipeHandler(c *gin.Context) {
 	})
 }
 
+func SearchRecipesHandler(c *gin.Context) {
+	tag := c.Query("tag")
+
+	var matchedRecipes []Recipe
+
+	for _, r := range recipes {
+		for _, t := range r.Tags {
+			if strings.EqualFold(t, tag) {
+				matchedRecipes = append(matchedRecipes, r)
+			}
+		}
+	}
+
+	if len(matchedRecipes) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{
+			"message": "Recipes not found",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, matchedRecipes)
+}
+
 var recipes []Recipe
 
 func init() {
@@ -108,5 +132,6 @@ func main() {
 	router.GET("/recipes", ListRecipesHandler)
 	router.PUT("/recipes/:id", UpdateRecipeHandler)
 	router.DELETE("/recipes/:id", DeleteRecipeHandler)
+	router.GET("/recipes/search", SearchRecipesHandler)
 	log.Fatal(router.Run())
 }
