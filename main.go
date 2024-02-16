@@ -67,7 +67,7 @@ func ListRecipesHandler(c *gin.Context) {
 //		description: Successful operation
 //	'404':
 //		description: Invalid recipe ID
-func searchRecipeHandler(c *gin.Context) {
+func SearchRecipeHandler(c *gin.Context) {
 	id := c.Param("id")
 
 	index := -1
@@ -264,7 +264,7 @@ func init() {
 func main() {
 	router := gin.Default()
 	router.GET("/recipes", ListRecipesHandler)
-	router.GET("/recipes/:id", searchRecipeHandler)
+	router.GET("/recipes/:id", SearchRecipeHandler)
 	router.POST("/recipes", NewRecipeHandler)
 	router.PUT("/recipes/:id", UpdateRecipeHandler)
 	router.DELETE("/recipes/:id", DeleteRecipeHandler)
