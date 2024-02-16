@@ -31,9 +31,7 @@
           "recipes"
         ],
         "operationId": "listRecipes"
-      }
-    },
-    "/recipes/": {
+      },
       "post": {
         "description": "Creates new recipe",
         "produces": [
@@ -54,7 +52,37 @@
         "tags": [
           "recipes"
         ],
-        "operationId": "searchRecipes"
+        "operationId": "searchRecipes",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "recipe tag",
+            "name": "id",
+            "in": "query",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/recipes/{:id}": {
+      "get": {
+        "description": "Search recipes by tag",
+        "produces": [
+          "application/json"
+        ],
+        "tags": [
+          "recipes"
+        ],
+        "operationId": "searchRecipes",
+        "parameters": [
+          {
+            "type": "string",
+            "description": "ID of a recipe",
+            "name": "id",
+            "in": "path",
+            "required": true
+          }
+        ]
       }
     },
     "/recipes/{id}": {
