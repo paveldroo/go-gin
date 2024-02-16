@@ -36,7 +36,6 @@ type Recipe struct {
 	PublishedAt  time.Time `json:"publishedAt"`
 }
 
-// ListRecipesHandler
 // swagger:operation GET /recipes recipes listRecipes
 // Returns list of recipes
 // ---
@@ -45,12 +44,11 @@ type Recipe struct {
 // responses:
 //
 //	'200':
-//		description: Successful operation
+//	    description: Successful operation
 func ListRecipesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, recipes)
 }
 
-// NewRecipeHandler
 // swagger:operation POST /recipes/ recipes newRecipe
 // Creates new recipe
 // ---
@@ -76,7 +74,6 @@ func NewRecipeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, recipe)
 }
 
-// UpdateRecipeHandler
 // swagger:operation PUT /recipes/{id} recipes updateRecipe
 // Update an existing recipe
 // ---
@@ -128,7 +125,6 @@ func UpdateRecipeHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, recipe)
 }
 
-// DeleteRecipeHandler
 // swagger:operation DELETE /recipes/{id} recipes deleteRecipe
 // Update an existing recipe
 // ---
@@ -172,7 +168,6 @@ func DeleteRecipeHandler(c *gin.Context) {
 	})
 }
 
-// SearchRecipesHandler
 // swagger:operation GET /recipes/search recipes searchRecipes
 // Search recipes by tag
 // ---
