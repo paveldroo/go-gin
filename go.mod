@@ -1,4 +1,4 @@
-module go-gin
+module github.com/paveldroo/go-gin
 
 go 1.21
 
