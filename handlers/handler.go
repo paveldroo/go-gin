@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/paveldroo/go-gin/models"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -42,9 +43,9 @@ func (handler *RecipesHandler) ListRecipesHandler(c *gin.Context) {
 
 	defer cur.Close(handler.ctx)
 
-	recipes := make([]Recipe, 0)
-	for cur.Next(ctx) {
-		var recipe Recipe
+	recipes := make([]models.Recipe, 0)
+	for cur.Next(handler.ctx) {
+		var recipe models.Recipe
 		cur.Decode(&recipe)
 		recipes = append(recipes, recipe)
 	}
@@ -70,13 +71,13 @@ func (handler *RecipesHandler) ListRecipesHandler(c *gin.Context) {
 //		description: Successful operation
 //	'404':
 //		description: Invalid recipe ID
-func GetOneRecipeHandler(c *gin.Context) {
+func (handler *RecipesHandler) GetOneRecipeHandler(c *gin.Context) {
 	id := c.Param("id")
 	objectId, _ := primitive.ObjectIDFromHex(id)
 
-	var recipe Recipe
-	cur := collection.FindOne(ctx, bson.M{"_id": objectId})
-	err = cur.Decode(&recipe)
+	var recipe models.Recipe
+	cur := handler.collection.FindOne(handler.ctx, bson.M{"_id": objectId})
+	err := cur.Decode(&recipe)
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -98,8 +99,8 @@ func GetOneRecipeHandler(c *gin.Context) {
 //		description: Successful operation
 //	'400':
 //		description: Invalid input
-func NewRecipeHandler(c *gin.Context) {
-	var recipe Recipe
+func (handler *RecipesHandler) NewRecipeHandler(c *gin.Context) {
+	var recipe models.Recipe
 	if err := c.ShouldBindJSON(&recipe); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -109,7 +110,7 @@ func NewRecipeHandler(c *gin.Context) {
 
 	recipe.ID = primitive.NewObjectID()
 	recipe.PublishedAt = time.Now()
-	_, err = collection.InsertOne(ctx, recipe)
+	_, err := handler.collection.InsertOne(handler.ctx, recipe)
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -141,9 +142,9 @@ func NewRecipeHandler(c *gin.Context) {
 //		description: Invalid input
 //	'404':
 //		description: Invalid recipe ID
-func UpdateRecipeHandler(c *gin.Context) {
+func (handler *RecipesHandler) UpdateRecipeHandler(c *gin.Context) {
 	id := c.Param("id")
-	var recipe Recipe
+	var recipe models.Recipe
 	if err := c.ShouldBindJSON(&recipe); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -153,8 +154,8 @@ func UpdateRecipeHandler(c *gin.Context) {
 
 	objectId, _ := primitive.ObjectIDFromHex(id)
 
-	_, err = collection.UpdateOne(
-		ctx,
+	_, err := handler.collection.UpdateOne(
+		handler.ctx,
 		bson.M{"_id": objectId},
 		bson.D{{"$set", bson.D{
 			{"name", recipe.Name},
@@ -194,12 +195,12 @@ func UpdateRecipeHandler(c *gin.Context) {
 //		description: Successful operation
 //	'404':
 //		description: Invalid recipe ID
-func DeleteRecipeHandler(c *gin.Context) {
+func (handler *RecipesHandler) DeleteRecipeHandler(c *gin.Context) {
 	id := c.Param("id")
 
 	objectId, _ := primitive.ObjectIDFromHex(id)
 
-	dResult, err := collection.DeleteOne(ctx, bson.M{"_id": objectId})
+	dResult, err := handler.collection.DeleteOne(handler.ctx, bson.M{"_id": objectId})
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -237,10 +238,10 @@ func DeleteRecipeHandler(c *gin.Context) {
 //		description: Successful operation
 //	'404':
 //		description: Invalid recipe ID
-func SearchRecipesHandler(c *gin.Context) {
+func (handler *RecipesHandler) SearchRecipesHandler(c *gin.Context) {
 	tag := c.Query("tag")
 
-	cur, err := collection.Find(ctx, bson.M{"tags": tag})
+	cur, err := handler.collection.Find(handler.ctx, bson.M{"tags": tag})
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -248,10 +249,10 @@ func SearchRecipesHandler(c *gin.Context) {
 		})
 	}
 
-	var recipes []Recipe
+	var recipes []models.Recipe
 
-	for cur.Next(ctx) {
-		var recipe Recipe
+	for cur.Next(handler.ctx) {
+		var recipe models.Recipe
 		cur.Decode(&recipe)
 		recipes = append(recipes, recipe)
 	}
