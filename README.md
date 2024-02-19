@@ -1,2 +1,2 @@
 # go-gin
-RESTful api service using Go web-framework Gin and MongoDB
+RESTful API service using Go web-framework Gin, MongoDB and Redis
