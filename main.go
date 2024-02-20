@@ -29,6 +29,7 @@ import (
 	"os"
 )
 
+var authHandler *handlers.AuthHandler
 var recipesHandler *handlers.RecipesHandler
 
 func init() {
@@ -51,15 +52,21 @@ func init() {
 	log.Println("Connected to MongoDB")
 	collection := client.Database(os.Getenv("MONGO_DATABASE")).Collection("recipes")
 	recipesHandler = handlers.NewRecipesHandler(ctx, collection, redisClient)
+	authHandler = &handlers.AuthHandler{}
 }
 
 func main() {
 	router := gin.Default()
 	router.GET("/recipes", recipesHandler.ListRecipesHandler)
-	router.GET("/recipes/:id", recipesHandler.GetOneRecipeHandler)
-	router.POST("/recipes", recipesHandler.NewRecipeHandler)
-	router.PUT("/recipes/:id", recipesHandler.UpdateRecipeHandler)
-	router.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
-	router.GET("/recipes/search", recipesHandler.SearchRecipesHandler)
+	router.POST("/signin", authHandler.SignInHandler)
+
+	authorized := router.Group("/")
+	authorized.Use(authHandler.AuthMiddleware())
+	authorized.GET("/recipes/:id", recipesHandler.GetOneRecipeHandler)
+	authorized.POST("/recipes", recipesHandler.NewRecipeHandler)
+	authorized.PUT("/recipes/:id", recipesHandler.UpdateRecipeHandler)
+	authorized.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
+	authorized.GET("/recipes/search", recipesHandler.SearchRecipesHandler)
+
 	log.Fatal(router.Run())
 }
