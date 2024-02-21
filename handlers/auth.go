@@ -21,6 +21,8 @@ type JWTOutput struct {
 	Expires time.Time `json:"expires"`
 }
 
+var keyFunc = func(token *jwt.Token) (interface{}, error) { return []byte(os.Getenv("JWT_SECRET")), nil }
+
 func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -66,7 +68,6 @@ func (handler *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 		tokenValue := c.GetHeader("Authorization")
 		claims := &Claims{}
 
-		keyFunc := func(token *jwt.Token) (interface{}, error) { return []byte(os.Getenv("JWT_SECRET")), nil }
 		tkn, err := jwt.ParseWithClaims(tokenValue, claims, keyFunc)
 		if err != nil {
 			c.AbortWithStatus(http.StatusUnauthorized)
@@ -76,4 +77,50 @@ func (handler *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func (handler *AuthHandler) RefreshHandler(c *gin.Context) {
+	tokenValue := c.GetHeader("Authorization")
+	claims := &Claims{}
+
+	tkn, err := jwt.ParseWithClaims(tokenValue, claims, keyFunc)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	if tkn == nil || !tkn.Valid {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "Imvalid token",
+		})
+		return
+	}
+
+	if time.Unix(claims.ExpiresAt, 0).Sub(time.Now()) > 30*time.Second {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Token is not expired yet",
+		})
+		return
+	}
+
+	expirationTime := time.Now().Add(10 * time.Minute)
+	claims.ExpiresAt = expirationTime.Unix()
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString(os.Getenv("JWT_SECRET"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	jwtOutput := JWTOutput{
+		Token:   tokenString,
+		Expires: expirationTime,
+	}
+
+	c.JSON(http.StatusOK, jwtOutput)
 }
