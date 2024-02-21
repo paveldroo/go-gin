@@ -19,9 +19,11 @@ package main
 import (
 	"context"
 	"fmt"
+	sessions "github.com/Calidity/gin-sessions"
+	ginredis "github.com/Calidity/gin-sessions/redis"
 	"github.com/gin-gonic/gin"
-	"github.com/go-redis/redis/v8"
 	"github.com/paveldroo/go-gin/handlers"
+	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -31,6 +33,7 @@ import (
 
 var authHandler *handlers.AuthHandler
 var recipesHandler *handlers.RecipesHandler
+var store *ginredis.RedisStore
 
 func init() {
 	ctx := context.Background()
@@ -44,6 +47,9 @@ func init() {
 	status := redisClient.Ping(ctx)
 	fmt.Println(status)
 
+	// session store
+	store, _ = ginredis.NewRedisStore(redisClient, []byte("secret"))
+
 	// mongodb
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(os.Getenv("MONGO_URI")))
 	if err = client.Ping(context.TODO(), readpref.Primary()); err != nil {
@@ -52,11 +58,13 @@ func init() {
 	log.Println("Connected to MongoDB")
 	collection := client.Database(os.Getenv("MONGO_DATABASE")).Collection("recipes")
 	recipesHandler = handlers.NewRecipesHandler(ctx, collection, redisClient)
-	authHandler = &handlers.AuthHandler{}
+	userCollection := client.Database(os.Getenv("MONGO_DATABASE")).Collection("users")
+	authHandler = handlers.NewAuthHandler(ctx, userCollection)
 }
 
 func main() {
 	router := gin.Default()
+	router.Use(sessions.Sessions("recipes_api", store))
 	router.GET("/recipes", recipesHandler.ListRecipesHandler)
 	router.POST("/signin", authHandler.SignInHandler)
 	router.POST("/refresh", authHandler.RefreshHandler)

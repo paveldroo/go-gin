@@ -1,15 +1,24 @@
 package handlers
 
 import (
+	"context"
+	"crypto/sha256"
+	sessions "github.com/Calidity/gin-sessions"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/paveldroo/go-gin/models"
+	"github.com/rs/xid"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"net/http"
 	"os"
 	"time"
 )
 
-type AuthHandler struct{}
+type AuthHandler struct {
+	collection *mongo.Collection
+	ctx        context.Context
+}
 
 type Claims struct {
 	Username string `json:"username"`
@@ -23,6 +32,13 @@ type JWTOutput struct {
 
 var keyFunc = func(token *jwt.Token) (interface{}, error) { return []byte(os.Getenv("JWT_SECRET")), nil }
 
+func NewAuthHandler(ctx context.Context, collection *mongo.Collection) *AuthHandler {
+	return &AuthHandler{
+		collection: collection,
+		ctx:        ctx,
+	}
+}
+
 func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 	var user models.User
 	if err := c.ShouldBindJSON(&user); err != nil {
@@ -32,48 +48,38 @@ func (handler *AuthHandler) SignInHandler(c *gin.Context) {
 		return
 	}
 
-	if user.Username != "admin" || user.Password != "password" {
+	h := sha256.New()
+	cur := handler.collection.FindOne(handler.ctx, bson.M{
+		"username": user.Username,
+		"password": string(h.Sum([]byte(user.Password))),
+	})
+	if cur.Err() != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "Invalid username or password",
 		})
 		return
 	}
 
-	expirationTime := time.Now().Add(10 * time.Minute)
-	claims := &Claims{
-		Username: user.Username,
-		StandardClaims: jwt.StandardClaims{
-			ExpiresAt: expirationTime.Unix(),
-		},
-	}
+	sessionToken := xid.New().String()
+	session := sessions.Default(c)
+	session.Set("username", user.Username)
+	session.Set("token", sessionToken)
+	session.Save()
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return
-	}
-
-	jwtOutput := JWTOutput{
-		Token:   tokenString,
-		Expires: expirationTime,
-	}
-	c.JSON(http.StatusOK, jwtOutput)
+	c.JSON(http.StatusOK, gin.H{
+		"message": "User signed in",
+	})
 }
 
 func (handler *AuthHandler) AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenValue := c.GetHeader("Authorization")
-		claims := &Claims{}
-
-		tkn, err := jwt.ParseWithClaims(tokenValue, claims, keyFunc)
-		if err != nil {
-			c.AbortWithStatus(http.StatusUnauthorized)
-		}
-		if tkn == nil || !tkn.Valid {
-			c.AbortWithStatus(http.StatusUnauthorized)
+		session := sessions.Default(c)
+		sessionToken := session.Get("token")
+		if sessionToken == nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"message": "Not logged",
+			})
+			c.Abort()
 		}
 		c.Next()
 	}
