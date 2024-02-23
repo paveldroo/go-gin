@@ -13,7 +13,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
-	"time"
 )
 
 type RecipesHandler struct {
@@ -41,7 +40,7 @@ func NewRecipesHandler(ctx context.Context, collection *mongo.Collection, redisC
 //	    description: Successful operation
 func (handler *RecipesHandler) ListRecipesHandler(c *gin.Context) {
 	val, err := handler.redisClient.Get(handler.ctx, "recipes").Result()
-	if errors.Is(err, redis.Nil) {
+	if errors.Is(err, redis.Nil) || val == "[]" {
 		log.Printf("Request to MongoDB")
 		cur, err := handler.collection.Find(handler.ctx, bson.M{})
 		if err != nil {
@@ -132,7 +131,6 @@ func (handler *RecipesHandler) NewRecipeHandler(c *gin.Context) {
 	}
 
 	recipe.ID = primitive.NewObjectID()
-	recipe.PublishedAt = time.Now()
 	_, err := handler.collection.InsertOne(handler.ctx, recipe)
 	if err != nil {
 		fmt.Println(err)
@@ -184,10 +182,9 @@ func (handler *RecipesHandler) UpdateRecipeHandler(c *gin.Context) {
 		handler.ctx,
 		bson.M{"_id": objectId},
 		bson.D{{"$set", bson.D{
-			{"name", recipe.Name},
-			{"instructions", recipe.Instructions},
-			{"ingredients", recipe.Ingredients},
-			{"tags", recipe.Tags},
+			{"title", recipe.Title},
+			{"thumbnail", recipe.Thumbnail},
+			{"url", recipe.URL},
 		}}})
 
 	if err != nil {
