@@ -23,6 +23,9 @@ import (
 	ginredis "github.com/Calidity/gin-sessions/redis"
 	"github.com/gin-gonic/gin"
 	"github.com/paveldroo/go-gin/handlers"
+	"github.com/paveldroo/go-gin/middleware"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
@@ -60,14 +63,19 @@ func init() {
 	recipesHandler = handlers.NewRecipesHandler(ctx, collection, redisClient)
 	userCollection := client.Database(os.Getenv("MONGO_DATABASE")).Collection("users")
 	authHandler = handlers.NewAuthHandler(ctx, userCollection)
+	prometheus.Register(middleware.TotalRequests)
+	prometheus.Register(middleware.TotalHTTPMethods)
+	prometheus.Register(middleware.HttpDuration)
 }
 
 func main() {
 	router := gin.Default()
 	router.Use(sessions.Sessions("recipes_api", store))
+	router.Use(middleware.PrometheusMiddleware())
 	router.GET("/recipes", recipesHandler.ListRecipesHandler)
 	router.POST("/signin", authHandler.SignInHandler)
 	router.POST("/refresh", authHandler.RefreshHandler)
+	router.GET("/prometheus", gin.WrapH(promhttp.Handler()))
 
 	authorized := router.Group("/")
 	authorized.Use(authHandler.AuthMiddleware())
